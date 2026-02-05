@@ -87,21 +87,4 @@ public class GridCell : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 클릭 처리 (GridManager에서 호출)
-    /// </summary>
-    public void OnClick()
-    {
-        // 테스트용: 클릭하면 점유 상태 토글
-        if (state == CellState.Empty)
-        {
-            Occupy(null);
-            Debug.Log($"Cell [{row}, {col}] occupied");
-        }
-        else
-        {
-            Free();
-            Debug.Log($"Cell [{row}, {col}] freed");
-        }
-    }
 }

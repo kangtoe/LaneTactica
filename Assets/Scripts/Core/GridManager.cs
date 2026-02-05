@@ -65,11 +65,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // 클릭 처리
-        if (Mouse.current.leftButton.wasPressedThisFrame && currentHoveredCell != null)
-        {
-            currentHoveredCell.OnClick();
-        }
+        // 타워 배치는 GameUI에서 처리
     }
 
     private void CreateMaterials()
