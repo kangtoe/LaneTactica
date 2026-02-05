@@ -1,137 +1,133 @@
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using LaneTactica.Resources;
 
-namespace LaneTactica.Core
+public enum GameState
 {
-    public enum GameState
+    Preparing,
+    Playing,
+    Paused,
+    Victory,
+    Defeat
+}
+
+public class GameManager : MonoBehaviour
+{
+    public static GameManager Instance { get; private set; }
+
+    [Header("References")]
+    [SerializeField] private GridManager gridManager;
+    [SerializeField] private ResourceManager resourceManager;
+
+    [Header("Game State")]
+    [SerializeField] private GameState currentState = GameState.Preparing;
+
+    // Events
+    public event Action<GameState> OnGameStateChanged;
+
+    public GridManager Grid => gridManager;
+    public ResourceManager Resources => resourceManager;
+    public GameState CurrentState => currentState;
+
+    private void Awake()
     {
-        Preparing,
-        Playing,
-        Paused,
-        Victory,
-        Defeat
+        // Singleton 패턴
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
+        // 참조 자동 찾기
+        if (gridManager == null)
+            gridManager = FindAnyObjectByType<GridManager>();
+        if (resourceManager == null)
+            resourceManager = FindAnyObjectByType<ResourceManager>();
     }
 
-    public class GameManager : MonoBehaviour
+    private void Start()
     {
-        public static GameManager Instance { get; private set; }
+        Debug.Log("GameManager initialized");
 
-        [Header("References")]
-        [SerializeField] private GridManager gridManager;
-        [SerializeField] private ResourceManager resourceManager;
+        // 자동으로 게임 시작 (테스트용)
+        StartGame();
+    }
 
-        [Header("Game State")]
-        [SerializeField] private GameState currentState = GameState.Preparing;
-
-        // Events
-        public event Action<GameState> OnGameStateChanged;
-
-        public GridManager Grid => gridManager;
-        public ResourceManager Resources => resourceManager;
-        public GameState CurrentState => currentState;
-
-        private void Awake()
+    private void Update()
+    {
+        // ESC 키로 일시정지 토글
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            // Singleton 패턴
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            Instance = this;
-
-            // 참조 자동 찾기
-            if (gridManager == null)
-                gridManager = FindAnyObjectByType<GridManager>();
-            if (resourceManager == null)
-                resourceManager = FindAnyObjectByType<ResourceManager>();
+            if (currentState == GameState.Playing)
+                PauseGame();
+            else if (currentState == GameState.Paused)
+                ResumeGame();
         }
 
-        private void Start()
+        // R 키로 리셋 (테스트용)
+        if (Keyboard.current.rKey.wasPressedThisFrame)
         {
-            Debug.Log("GameManager initialized");
-
-            // 자동으로 게임 시작 (테스트용)
-            StartGame();
+            RestartGame();
         }
+    }
 
-        private void Update()
-        {
-            // ESC 키로 일시정지 토글
-            if (Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                if (currentState == GameState.Playing)
-                    PauseGame();
-                else if (currentState == GameState.Paused)
-                    ResumeGame();
-            }
+    public void StartGame()
+    {
+        SetState(GameState.Playing);
+        Debug.Log("Game Started!");
+    }
 
-            // R 키로 리셋 (테스트용)
-            if (Keyboard.current.rKey.wasPressedThisFrame)
-            {
-                RestartGame();
-            }
-        }
+    public void PauseGame()
+    {
+        if (currentState != GameState.Playing) return;
 
-        public void StartGame()
-        {
-            SetState(GameState.Playing);
-            Debug.Log("Game Started!");
-        }
+        Time.timeScale = 0f;
+        SetState(GameState.Paused);
+        Debug.Log("Game Paused");
+    }
 
-        public void PauseGame()
-        {
-            if (currentState != GameState.Playing) return;
+    public void ResumeGame()
+    {
+        if (currentState != GameState.Paused) return;
 
-            Time.timeScale = 0f;
-            SetState(GameState.Paused);
-            Debug.Log("Game Paused");
-        }
+        Time.timeScale = 1f;
+        SetState(GameState.Playing);
+        Debug.Log("Game Resumed");
+    }
 
-        public void ResumeGame()
-        {
-            if (currentState != GameState.Paused) return;
+    public void Victory()
+    {
+        Time.timeScale = 0f;
+        SetState(GameState.Victory);
+        Debug.Log("Victory!");
+    }
 
-            Time.timeScale = 1f;
-            SetState(GameState.Playing);
-            Debug.Log("Game Resumed");
-        }
+    public void Defeat()
+    {
+        Time.timeScale = 0f;
+        SetState(GameState.Defeat);
+        Debug.Log("Defeat!");
+    }
 
-        public void Victory()
-        {
-            Time.timeScale = 0f;
-            SetState(GameState.Victory);
-            Debug.Log("Victory!");
-        }
+    public void RestartGame()
+    {
+        Time.timeScale = 1f;
+        resourceManager?.ResetResources();
+        SetState(GameState.Preparing);
+        Debug.Log("Game Restarted");
 
-        public void Defeat()
-        {
-            Time.timeScale = 0f;
-            SetState(GameState.Defeat);
-            Debug.Log("Defeat!");
-        }
+        // 씬을 리로드하거나 그리드 리셋
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
+        );
+    }
 
-        public void RestartGame()
-        {
-            Time.timeScale = 1f;
-            resourceManager?.ResetResources();
-            SetState(GameState.Preparing);
-            Debug.Log("Game Restarted");
+    private void SetState(GameState newState)
+    {
+        if (currentState == newState) return;
 
-            // 씬을 리로드하거나 그리드 리셋
-            UnityEngine.SceneManagement.SceneManager.LoadScene(
-                UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
-            );
-        }
-
-        private void SetState(GameState newState)
-        {
-            if (currentState == newState) return;
-
-            currentState = newState;
-            OnGameStateChanged?.Invoke(currentState);
-        }
+        currentState = newState;
+        OnGameStateChanged?.Invoke(currentState);
     }
 }
