@@ -1,13 +1,30 @@
 using System;
 using UnityEngine;
 
+public enum AttackType
+{
+    None,
+    Melee,
+    Ranged
+}
+
 /// <summary>
 /// 모든 유닛의 기본 클래스
 /// </summary>
 public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
 {
-    [Header("Unit Data")]
-    [SerializeField] protected UnitData unitData;
+    [Header("Basic Info")]
+    [SerializeField] protected string unitName = "Unit";
+
+    [Header("Stats")]
+    [SerializeField] protected int maxHealth = 100;
+    [SerializeField] protected int attackDamage = 10;
+    [SerializeField] protected float attackSpeed = 1f;
+    [SerializeField] protected float attackRange = 1f;
+
+    [Header("Attack")]
+    [SerializeField] protected AttackType attackType = AttackType.Melee;
+    [SerializeField] protected GameObject projectilePrefab;
 
     [Header("Runtime State")]
     [SerializeField] protected int currentHealth;
@@ -17,7 +34,7 @@ public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
     protected ITargetable currentTarget;
 
     // Events
-    public event Action<int, int> OnHealthChanged;  // current, max
+    public event Action<int, int> OnHealthChanged;
     public event Action OnDeath;
 
     // ITargetable
@@ -27,18 +44,14 @@ public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
 
     // IDamageable
     public int CurrentHealth => currentHealth;
-    public int MaxHealth => unitData != null ? unitData.maxHealth : 0;
+    public int MaxHealth => maxHealth;
 
     // Properties
-    public UnitData Data => unitData;
-    public string UnitName => unitData != null ? unitData.unitName : "Unknown";
+    public string UnitName => unitName;
 
     protected virtual void Awake()
     {
-        if (unitData != null)
-        {
-            currentHealth = unitData.maxHealth;
-        }
+        currentHealth = maxHealth;
     }
 
     protected virtual void Start()
@@ -50,12 +63,11 @@ public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
     {
         if (!IsAlive) return;
 
-        // 공격 타이머
-        if (unitData != null && unitData.attackType != AttackType.None)
+        if (attackType != AttackType.None)
         {
             attackTimer += Time.deltaTime;
 
-            if (attackTimer >= 1f / unitData.attackSpeed)
+            if (attackTimer >= 1f / attackSpeed)
             {
                 TryAttack();
                 attackTimer = 0f;
@@ -63,20 +75,9 @@ public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
         }
     }
 
-    public virtual void Initialize(UnitData data, int lane)
+    public virtual void SetLane(int lane)
     {
-        this.unitData = data;
         this.lane = lane;
-        this.currentHealth = data.maxHealth;
-
-        // 색상 적용
-        var renderer = GetComponent<Renderer>();
-        if (renderer != null && data.unitColor != Color.white)
-        {
-            renderer.material.color = data.unitColor;
-        }
-
-        OnHealthChanged?.Invoke(currentHealth, MaxHealth);
     }
 
     #region Combat
@@ -98,32 +99,32 @@ public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
 
     protected virtual bool IsInRange(ITargetable target)
     {
-        if (target == null || unitData == null) return false;
+        if (target == null) return false;
 
         float distance = Vector3.Distance(transform.position, target.Transform.position);
-        return distance <= unitData.attackRange;
+        return distance <= attackRange;
     }
 
     protected virtual void PerformAttack(ITargetable target)
     {
-        if (target == null || unitData == null) return;
+        if (target == null) return;
 
-        if (unitData.attackType == AttackType.Ranged && unitData.projectilePrefab != null)
+        if (attackType == AttackType.Ranged && projectilePrefab != null)
         {
             SpawnProjectile(target);
         }
-        else if (unitData.attackType == AttackType.Melee)
+        else if (attackType == AttackType.Melee)
         {
-            DealDamage(target, unitData.attackDamage);
+            DealDamage(target, attackDamage);
         }
     }
 
     protected virtual void SpawnProjectile(ITargetable target)
     {
-        if (unitData.projectilePrefab == null) return;
+        if (projectilePrefab == null) return;
 
         GameObject projObj = Instantiate(
-            unitData.projectilePrefab,
+            projectilePrefab,
             transform.position + Vector3.up * 0.5f,
             Quaternion.identity
         );
@@ -131,7 +132,7 @@ public abstract class UnitBase : MonoBehaviour, ITargetable, IDamageable
         var projectile = projObj.GetComponent<Projectile>();
         if (projectile != null)
         {
-            projectile.Initialize(target, unitData.attackDamage);
+            projectile.Initialize(target, attackDamage);
         }
     }
 
