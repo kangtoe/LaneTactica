@@ -33,7 +33,7 @@ public class GameUI : MonoBehaviour
     // Tower Selection
     private TowerBase[] towerPrefabs;
     private TowerCard[] towerCards;
-    private int selectedIndex = 0;
+    private int selectedIndex = -1;
     private Camera mainCamera;
 
     public TowerBase SelectedTower =>
