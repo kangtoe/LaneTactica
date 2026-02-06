@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -32,6 +33,10 @@ public abstract class UnitBase : MonoBehaviour
     [SerializeField] protected Vector3 healthBarOffset = new Vector3(0, 1.5f, 0);
     [SerializeField] protected Vector2 healthBarSize = new Vector2(1f, 0.1f);
 
+    [Header("Hit Flash")]
+    [SerializeField] private Color hitFlashColor = Color.red;
+    [SerializeField] private float hitFlashDuration = 0.15f;
+
     [Header("Runtime State")]
     [SerializeField] protected int currentHealth;
     [SerializeField] protected int lane;
@@ -42,6 +47,11 @@ public abstract class UnitBase : MonoBehaviour
     // Health Bar UI
     private Canvas healthBarCanvas;
     private Image healthBarFill;
+
+    // Hit Flash
+    private Renderer unitRenderer;
+    private Color originalColor;
+    private Coroutine hitFlashCoroutine;
 
     // Events
     public event Action<int, int> OnHealthChanged;
@@ -57,6 +67,12 @@ public abstract class UnitBase : MonoBehaviour
     protected virtual void Awake()
     {
         currentHealth = maxHealth;
+
+        unitRenderer = GetComponentInChildren<Renderer>();
+        if (unitRenderer != null)
+        {
+            originalColor = unitRenderer.material.color;
+        }
     }
 
     protected virtual void Start()
@@ -161,6 +177,7 @@ public abstract class UnitBase : MonoBehaviour
         currentHealth = Mathf.Max(0, currentHealth - damage);
         OnHealthChanged?.Invoke(currentHealth, MaxHealth);
         UpdateHealthBar();
+        FlashOnHit();
 
         Debug.Log($"{UnitName} took {damage} damage. HP: {currentHealth}/{MaxHealth}");
 
@@ -187,6 +204,29 @@ public abstract class UnitBase : MonoBehaviour
     }
 
     protected abstract void OnUnitDeath();
+
+    #endregion
+
+    #region Hit Flash
+
+    private void FlashOnHit()
+    {
+        if (unitRenderer == null) return;
+
+        if (hitFlashCoroutine != null)
+        {
+            StopCoroutine(hitFlashCoroutine);
+        }
+        hitFlashCoroutine = StartCoroutine(HitFlashRoutine());
+    }
+
+    private IEnumerator HitFlashRoutine()
+    {
+        unitRenderer.material.color = hitFlashColor;
+        yield return new WaitForSeconds(hitFlashDuration);
+        unitRenderer.material.color = originalColor;
+        hitFlashCoroutine = null;
+    }
 
     #endregion
 
