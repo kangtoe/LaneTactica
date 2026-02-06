@@ -3813,6 +3813,7 @@ MonoBehaviour:
   enemyPrefab: {fileID: 7519628117453869792, guid: 6c937925c6d59bf41839fab575588fab, type: 3}
   spawnInterval: 3
   spawnX: 6
+  randomOffset: 0.2
   gridManager: {fileID: 1451006078}
 --- !u!4 &1989897123
 Transform:
