@@ -9,11 +9,11 @@ public class Projectile : MonoBehaviour
     [SerializeField] private float speed = 10f;
     [SerializeField] private float maxLifetime = 5f;
 
-    private ITargetable target;
+    private UnitBase target;
     private int damage;
     private float lifetime;
 
-    public void Initialize(ITargetable target, int damage)
+    public void Initialize(UnitBase target, int damage)
     {
         this.target = target;
         this.damage = damage;
@@ -36,7 +36,7 @@ public class Projectile : MonoBehaviour
         }
 
         // 타겟을 향해 이동
-        Vector3 direction = (target.Transform.position - transform.position).normalized;
+        Vector3 direction = (target.transform.position - transform.position).normalized;
         transform.position += direction * speed * Time.deltaTime;
 
         // 타겟 방향으로 회전
@@ -46,7 +46,7 @@ public class Projectile : MonoBehaviour
         }
 
         // 타겟에 도달했는지 체크
-        float distance = Vector3.Distance(transform.position, target.Transform.position);
+        float distance = Vector3.Distance(transform.position, target.transform.position);
         if (distance < 0.3f)
         {
             HitTarget();
@@ -55,11 +55,7 @@ public class Projectile : MonoBehaviour
 
     private void HitTarget()
     {
-        if (target is IDamageable damageable)
-        {
-            damageable.TakeDamage(damage);
-        }
-
+        target.TakeDamage(damage);
         Destroy(gameObject);
     }
 }

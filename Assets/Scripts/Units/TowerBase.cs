@@ -25,7 +25,7 @@ public class TowerBase : UnitBase
         this.lane = row; // 레인 = 행
     }
 
-    protected override ITargetable FindTarget()
+    protected override UnitBase FindTarget()
     {
         // 같은 레인의 가장 가까운 적 찾기
         var enemies = FindObjectsByType<EnemyBase>(FindObjectsSortMode.None);
