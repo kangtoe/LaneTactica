@@ -36,6 +36,14 @@ public class GameUI : MonoBehaviour
     private int selectedIndex = -1;
     private Camera mainCamera;
 
+    // Drag Placement
+    private bool isDragging;
+    private TowerCard draggingCard;
+    private GameObject ghostPreview;
+    private GridCell currentHoverCell;
+    private Material ghostValidMaterial;
+    private Material ghostInvalidMaterial;
+
     public TowerBase SelectedTower =>
         towerPrefabs != null && selectedIndex >= 0 && selectedIndex < towerPrefabs.Length
             ? towerPrefabs[selectedIndex]
@@ -45,6 +53,32 @@ public class GameUI : MonoBehaviour
     {
         mainCamera = Camera.main;
         Initialize();
+        InitializeGhostMaterials();
+    }
+
+    private void InitializeGhostMaterials()
+    {
+        // 배치 가능 - 반투명 초록
+        ghostValidMaterial = new Material(Shader.Find("Standard"));
+        ghostValidMaterial.color = new Color(0.2f, 0.8f, 0.2f, 0.5f);
+        SetMaterialTransparent(ghostValidMaterial);
+
+        // 배치 불가 - 반투명 빨강
+        ghostInvalidMaterial = new Material(Shader.Find("Standard"));
+        ghostInvalidMaterial.color = new Color(0.8f, 0.2f, 0.2f, 0.5f);
+        SetMaterialTransparent(ghostInvalidMaterial);
+    }
+
+    private void SetMaterialTransparent(Material mat)
+    {
+        mat.SetFloat("_Mode", 3); // Transparent
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        mat.SetInt("_ZWrite", 0);
+        mat.DisableKeyword("_ALPHATEST_ON");
+        mat.EnableKeyword("_ALPHABLEND_ON");
+        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+        mat.renderQueue = 3000;
     }
 
     private void Initialize()
@@ -101,7 +135,9 @@ public class GameUI : MonoBehaviour
         if (GameManager.Instance.CurrentState != GameState.Playing) return;
 
         HandleKeyboardSelection();
-        HandleTowerPlacement();
+        // 드래그 중이 아닐 때만 클릭 배치 허용 (키보드 선택 후 클릭 배치용)
+        if (!isDragging)
+            HandleTowerPlacement();
     }
 
     #region UI Initialization
@@ -285,30 +321,31 @@ public class GameUI : MonoBehaviour
         GridCell cell = hit.collider.GetComponent<GridCell>();
         if (cell == null) return;
 
-        TryPlaceTower(cell);
+        TryPlaceTower(cell, SelectedTower);
     }
 
-    private void TryPlaceTower(GridCell cell)
+    private bool TryPlaceTower(GridCell cell, TowerBase towerPrefab)
     {
         if (!cell.IsEmpty)
         {
             Debug.Log("Cell is occupied!");
-            return;
+            return false;
         }
 
-        if (!resourceManager.HasEnoughEnergy(SelectedTower.EnergyCost))
+        if (!resourceManager.HasEnoughEnergy(towerPrefab.EnergyCost))
         {
             Debug.Log("Not enough energy!");
-            return;
+            return false;
         }
 
-        resourceManager.SpendEnergy(SelectedTower.EnergyCost);
-        PlaceTower(cell);
+        resourceManager.SpendEnergy(towerPrefab.EnergyCost);
+        PlaceTower(cell, towerPrefab);
+        return true;
     }
 
-    private void PlaceTower(GridCell cell)
+    private void PlaceTower(GridCell cell, TowerBase towerPrefab)
     {
-        GameObject towerObj = Instantiate(SelectedTower.gameObject);
+        GameObject towerObj = Instantiate(towerPrefab.gameObject);
 
         Vector3 pos = cell.transform.position;
         pos.y = 0.5f;
@@ -331,6 +368,182 @@ public class GameUI : MonoBehaviour
     {
         selectedIndex = -1;
         UpdateSelection();
+    }
+
+    #endregion
+
+    #region Drag Placement
+
+    public bool CanAffordTower(TowerBase tower)
+    {
+        if (resourceManager == null || tower == null) return false;
+        return resourceManager.HasEnoughEnergy(tower.EnergyCost);
+    }
+
+    public void StartDragPlacement(TowerCard card, UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (card == null || card.Tower == null) return;
+
+        isDragging = true;
+        draggingCard = card;
+
+        // 고스트 프리뷰 생성
+        CreateGhostPreview(card.Tower);
+        UpdateGhostPosition(eventData.position);
+    }
+
+    public void UpdateDragPlacement(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (!isDragging || ghostPreview == null) return;
+
+        UpdateGhostPosition(eventData.position);
+    }
+
+    public void EndDragPlacement(UnityEngine.EventSystems.PointerEventData eventData)
+    {
+        if (!isDragging) return;
+
+        // 유효한 셀에 드롭했는지 확인
+        if (currentHoverCell != null && currentHoverCell.IsEmpty)
+        {
+            TryPlaceTower(currentHoverCell, draggingCard.Tower);
+        }
+
+        // 정리
+        CleanupDrag();
+    }
+
+    private void CreateGhostPreview(TowerBase towerPrefab)
+    {
+        // 기존 고스트 제거
+        if (ghostPreview != null)
+            Destroy(ghostPreview);
+
+        // 타워 프리팹 복제
+        ghostPreview = Instantiate(towerPrefab.gameObject);
+        ghostPreview.name = "GhostPreview";
+
+        // 모든 컴포넌트 비활성화 (시각적 요소만 유지)
+        DisableGhostComponents(ghostPreview);
+
+        // 반투명 머티리얼 적용
+        ApplyGhostMaterial(ghostPreview, ghostValidMaterial);
+    }
+
+    private void DisableGhostComponents(GameObject ghost)
+    {
+        // Collider 비활성화
+        foreach (var collider in ghost.GetComponentsInChildren<Collider>())
+            collider.enabled = false;
+
+        // TowerBase 및 기타 스크립트 비활성화
+        foreach (var behaviour in ghost.GetComponentsInChildren<MonoBehaviour>())
+        {
+            if (!(behaviour is Renderer))
+                behaviour.enabled = false;
+        }
+
+        // Rigidbody 제거
+        foreach (var rb in ghost.GetComponentsInChildren<Rigidbody>())
+            Destroy(rb);
+    }
+
+    private void ApplyGhostMaterial(GameObject ghost, Material mat)
+    {
+        foreach (var renderer in ghost.GetComponentsInChildren<Renderer>())
+        {
+            Material[] mats = new Material[renderer.materials.Length];
+            for (int i = 0; i < mats.Length; i++)
+                mats[i] = mat;
+            renderer.materials = mats;
+        }
+    }
+
+    private void UpdateGhostPosition(Vector2 screenPos)
+    {
+        if (ghostPreview == null || mainCamera == null) return;
+
+        Ray ray = mainCamera.ScreenPointToRay(screenPos);
+
+        // 그리드 셀에 레이캐스트
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            GridCell cell = hit.collider.GetComponent<GridCell>();
+
+            if (cell != null)
+            {
+                // 셀 위치에 고스트 배치
+                Vector3 pos = cell.transform.position;
+                pos.y = 0.5f;
+                ghostPreview.transform.position = pos;
+
+                // 하이라이트 업데이트
+                UpdateCellHighlight(cell);
+
+                // 배치 가능 여부에 따라 색상 변경
+                bool canPlace = cell.IsEmpty;
+                ApplyGhostMaterial(ghostPreview, canPlace ? ghostValidMaterial : ghostInvalidMaterial);
+
+                currentHoverCell = cell;
+            }
+            else
+            {
+                // 그리드 밖 - 월드 위치에 표시
+                SetGhostToWorldPosition(ray);
+                ClearCellHighlight();
+                ApplyGhostMaterial(ghostPreview, ghostInvalidMaterial);
+                currentHoverCell = null;
+            }
+        }
+        else
+        {
+            // 아무것도 없음 - 레이 방향으로 일정 거리에 표시
+            SetGhostToWorldPosition(ray);
+            ClearCellHighlight();
+            ApplyGhostMaterial(ghostPreview, ghostInvalidMaterial);
+            currentHoverCell = null;
+        }
+    }
+
+    private void SetGhostToWorldPosition(Ray ray)
+    {
+        // 그리드 평면(Y=0)과의 교차점 계산
+        Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
+        if (groundPlane.Raycast(ray, out float distance))
+        {
+            Vector3 pos = ray.GetPoint(distance);
+            pos.y = 0.5f;
+            ghostPreview.transform.position = pos;
+        }
+    }
+
+    private void UpdateCellHighlight(GridCell cell)
+    {
+        if (currentHoverCell != null && currentHoverCell != cell)
+            currentHoverCell.SetDragHighlight(false, false);
+
+        cell.SetDragHighlight(true, cell.IsEmpty);
+    }
+
+    private void ClearCellHighlight()
+    {
+        if (currentHoverCell != null)
+            currentHoverCell.SetDragHighlight(false, false);
+    }
+
+    private void CleanupDrag()
+    {
+        isDragging = false;
+        draggingCard = null;
+
+        if (ghostPreview != null)
+        {
+            Destroy(ghostPreview);
+            ghostPreview = null;
+        }
+
+        ClearCellHighlight();
+        currentHoverCell = null;
     }
 
     #endregion

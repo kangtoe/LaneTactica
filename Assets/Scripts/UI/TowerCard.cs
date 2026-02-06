@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// 개별 타워 선택 카드 UI
+/// PvZ 스타일 드래그 앤 드롭 배치 지원
 /// </summary>
-public class TowerCard : MonoBehaviour
+public class TowerCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [Header("UI Elements")]
     [SerializeField] private Image backgroundImage;
@@ -88,4 +90,33 @@ public class TowerCard : MonoBehaviour
         if (backgroundImage != null && !canAfford)
             backgroundImage.color = disabledColor;
     }
+
+    #region Drag Handlers
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        // 에너지 부족 시 드래그 시작 불가
+        if (gameUI == null || tower == null) return;
+        if (!gameUI.CanAffordTower(tower))
+        {
+            eventData.pointerDrag = null; // 드래그 취소
+            return;
+        }
+
+        gameUI.StartDragPlacement(this, eventData);
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (gameUI == null) return;
+        gameUI.UpdateDragPlacement(eventData);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (gameUI == null) return;
+        gameUI.EndDragPlacement(eventData);
+    }
+
+    #endregion
 }
