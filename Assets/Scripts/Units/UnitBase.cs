@@ -256,7 +256,7 @@ public abstract class UnitBase : MonoBehaviour
         bgRect.anchorMin = Vector2.zero;
         bgRect.anchorMax = Vector2.one;
         bgRect.sizeDelta = Vector2.zero;
-        bgRect.anchoredPosition = Vector2.zero;
+        bgRect.anchoredPosition3D = Vector3.zero;
 
         // Fill
         var fillObj = new GameObject("Fill");
@@ -267,7 +267,7 @@ public abstract class UnitBase : MonoBehaviour
         fillRect.anchorMin = Vector2.zero;
         fillRect.anchorMax = Vector2.one;
         fillRect.sizeDelta = Vector2.zero;
-        fillRect.anchoredPosition = Vector2.zero;
+        fillRect.anchoredPosition3D = Vector3.zero;
         fillRect.pivot = new Vector2(0, 0.5f);
 
         UpdateHealthBar();
