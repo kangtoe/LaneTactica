@@ -11,6 +11,7 @@ public class EnemySpawner : MonoBehaviour
     [Header("Spawn Settings")]
     [SerializeField] private float spawnInterval = 3f;
     [SerializeField] private float spawnX = 6f;
+    [SerializeField] private float randomOffset = 0.2f;
 
     [Header("References")]
     [SerializeField] private GridManager gridManager;
@@ -70,7 +71,10 @@ public class EnemySpawner : MonoBehaviour
         float totalHeight = gridManager.Rows * (cellSize + spacing) - spacing;
         float z = -totalHeight / 2 + cellSize / 2 + lane * (cellSize + spacing);
 
-        return new Vector3(spawnX, 0.5f, z);
+        // 랜덤 오프셋 추가
+        float offsetZ = Random.Range(-randomOffset, randomOffset);
+
+        return new Vector3(spawnX, 0.5f, z + offsetZ);
     }
 
     [ContextMenu("Spawn Enemy Now")]

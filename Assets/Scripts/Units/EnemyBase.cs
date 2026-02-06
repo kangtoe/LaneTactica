@@ -20,10 +20,59 @@ public class EnemyBase : UnitBase
 
         if (!IsAlive) return;
 
+        // 매 프레임 타깃 상태 확인
+        CheckTargetAndMovement();
+
         if (isMoving)
         {
             Move();
         }
+    }
+
+    private void CheckTargetAndMovement()
+    {
+        // 현재 타깃이 없거나 죽었으면 새 타깃 찾기
+        if (currentTarget == null || !currentTarget.IsAlive)
+        {
+            currentTarget = FindTargetInRange();
+        }
+
+        // 타깃이 범위 안에 있으면 멈추고, 없으면 이동
+        if (currentTarget != null && IsInRange(currentTarget))
+        {
+            StopMoving();
+        }
+        else
+        {
+            StartMoving();
+        }
+    }
+
+    private UnitBase FindTargetInRange()
+    {
+        // 같은 레인의 가장 가까운 타워 찾기
+        var towers = FindObjectsByType<TowerBase>(FindObjectsSortMode.None);
+
+        TowerBase closest = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var tower in towers)
+        {
+            if (!tower.IsAlive) continue;
+            if (tower.Lane != this.Lane) continue;
+
+            // 적보다 왼쪽에 있는 타워만
+            if (tower.transform.position.x >= transform.position.x) continue;
+
+            float dist = Vector3.Distance(transform.position, tower.transform.position);
+            if (dist < closestDist)
+            {
+                closestDist = dist;
+                closest = tower;
+            }
+        }
+
+        return closest;
     }
 
     protected virtual void Move()
@@ -58,40 +107,11 @@ public class EnemyBase : UnitBase
     public void StartMoving()
     {
         isMoving = true;
-        currentTarget = null;
     }
 
-    protected override ITargetable FindTarget()
+    protected override UnitBase FindTarget()
     {
-        // 같은 레인의 가장 가까운 타워 찾기
-        var towers = FindObjectsByType<TowerBase>(FindObjectsSortMode.None);
-
-        TowerBase closest = null;
-        float closestDist = float.MaxValue;
-
-        foreach (var tower in towers)
-        {
-            if (!tower.IsAlive) continue;
-            if (tower.Lane != this.Lane) continue;
-
-            // 적보다 왼쪽에 있는 타워만
-            if (tower.transform.position.x >= transform.position.x) continue;
-
-            float dist = Vector3.Distance(transform.position, tower.transform.position);
-            if (dist < closestDist)
-            {
-                closestDist = dist;
-                closest = tower;
-            }
-        }
-
-        // 타워가 범위 안에 있으면 멈추기
-        if (closest != null && closestDist <= attackRange)
-        {
-            StopMoving();
-        }
-
-        return closest;
+        return FindTargetInRange();
     }
 
     protected override void OnUnitDeath()
