@@ -47,6 +47,7 @@ public abstract class UnitBase : MonoBehaviour
     // Health Bar UI
     private Canvas healthBarCanvas;
     private Image healthBarFill;
+    private Text nameLabel;
 
     // Hit Flash
     private Renderer unitRenderer;
@@ -269,6 +270,25 @@ public abstract class UnitBase : MonoBehaviour
         fillRect.sizeDelta = Vector2.zero;
         fillRect.anchoredPosition3D = Vector3.zero;
         fillRect.pivot = new Vector2(0, 0.5f);
+
+        // Name Label
+        var nameObj = new GameObject("NameLabel");
+        nameObj.transform.SetParent(canvasObj.transform);
+        nameLabel = nameObj.AddComponent<Text>();
+        nameLabel.text = unitName;
+        nameLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        nameLabel.fontSize = 80;
+        nameLabel.alignment = TextAnchor.LowerCenter;
+        nameLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+        nameLabel.verticalOverflow = VerticalWrapMode.Overflow;
+        nameLabel.color = Color.white;
+        var nameRect = nameObj.GetComponent<RectTransform>();
+        nameRect.anchorMin = new Vector2(0.5f, 1);
+        nameRect.anchorMax = new Vector2(0.5f, 1);
+        nameRect.pivot = new Vector2(0.5f, 0);
+        nameRect.anchoredPosition3D = Vector3.zero;
+        nameRect.sizeDelta = new Vector2(200, 30);
+        nameRect.localScale = Vector3.one * 0.003f;
 
         UpdateHealthBar();
     }
