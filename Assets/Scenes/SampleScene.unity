@@ -1577,7 +1577,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TowerPlacementSystem
   towerPrefabs:
   - {fileID: 5938299711902113475, guid: 480ffda7a32e49e4280845ccf02f5a41, type: 3}
-  - {fileID: 6039771150759662778, guid: 79881eca2c4915a4396121a6e3f1848c, type: 3}
+  - {fileID: 3559745099927525087, guid: 58e92ede29437354e8d046cf9c6133ac, type: 3}
   selectedIndex: 0
   selectedTowerText: {fileID: 1543072317}
   gridManager: {fileID: 1451006078}
