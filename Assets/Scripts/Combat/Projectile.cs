@@ -3,25 +3,58 @@ using UnityEngine;
 /// <summary>
 /// 원거리 공격 투사체
 /// </summary>
+[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(SphereCollider))]
 public class Projectile : MonoBehaviour
 {
     [Header("Settings")]
     [SerializeField] private float speed = 10f;
     [SerializeField] private float maxLifetime = 5f;
+    [SerializeField] private float collisionRadius = 0.3f;
 
-    private UnitBase target;
+    [Header("Target Filtering")]
+    [SerializeField] private LayerMask targetLayer;
+
+    private Vector3 direction;
     private int damage;
     private float lifetime;
+    private Rigidbody rb;
+    private bool hasHit = false;
 
-    public void Initialize(UnitBase target, int damage)
+    private void Awake()
     {
-        this.target = target;
+        // Rigidbody 설정
+        rb = GetComponent<Rigidbody>();
+        rb.useGravity = false;
+        rb.isKinematic = true;
+
+        // Collider 설정
+        SphereCollider collider = GetComponent<SphereCollider>();
+        collider.isTrigger = true;
+        collider.radius = collisionRadius;
+    }
+
+    public void Initialize(Vector3 direction, int damage, LayerMask targetLayer)
+    {
+        this.direction = direction.normalized;
         this.damage = damage;
+        this.targetLayer = targetLayer;
         this.lifetime = 0f;
+        this.hasHit = false;
+
+        // 발사 방향으로 회전
+        if (this.direction != Vector3.zero)
+        {
+            transform.rotation = Quaternion.LookRotation(this.direction);
+        }
     }
 
     private void Update()
     {
+        // 이미 명중했으면 업데이트 중지
+        if (hasHit)
+            return;
+
         lifetime += Time.deltaTime;
         if (lifetime >= maxLifetime)
         {
@@ -29,33 +62,33 @@ public class Projectile : MonoBehaviour
             return;
         }
 
-        if (target == null || !target.IsAlive)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        // 타겟을 향해 이동
-        Vector3 direction = (target.transform.position - transform.position).normalized;
+        // 직진 이동
         transform.position += direction * speed * Time.deltaTime;
-
-        // 타겟 방향으로 회전
-        if (direction != Vector3.zero)
-        {
-            transform.rotation = Quaternion.LookRotation(direction);
-        }
-
-        // 타겟에 도달했는지 체크
-        float distance = Vector3.Distance(transform.position, target.transform.position);
-        if (distance < 0.3f)
-        {
-            HitTarget();
-        }
     }
 
-    private void HitTarget()
+    private void OnTriggerEnter(Collider other)
     {
-        target.TakeDamage(damage);
+        // 이미 명중했으면 무시
+        if (hasHit)
+            return;
+
+        // 레이어 체크
+        int otherLayer = 1 << other.gameObject.layer;
+        if ((targetLayer.value & otherLayer) == 0)
+            return;
+
+        // 충돌한 오브젝트가 유닛인지 확인
+        if (!other.TryGetComponent<UnitBase>(out var unit))
+            return;
+
+        // 명중 처리
+        HitTarget(unit);
+    }
+
+    private void HitTarget(UnitBase unit)
+    {
+        hasHit = true;
+        unit.TakeDamage(damage);
         Destroy(gameObject);
     }
 }

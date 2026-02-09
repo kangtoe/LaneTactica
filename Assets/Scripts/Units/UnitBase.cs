@@ -15,6 +15,10 @@ public enum AttackType
 /// </summary>
 public abstract class UnitBase : MonoBehaviour
 {
+    // Hit Flash 상수
+    private const float HIT_FLASH_DURATION = 0.15f;
+    private static readonly Color HIT_FLASH_COLOR = Color.red;
+
     [Header("Basic Info")]
     [SerializeField] protected string unitName = "Unit";
 
@@ -27,15 +31,12 @@ public abstract class UnitBase : MonoBehaviour
     [Header("Attack")]
     [SerializeField] protected AttackType attackType = AttackType.Melee;
     [SerializeField] protected GameObject projectilePrefab;
+    [SerializeField] protected Transform firePoint;
 
     [Header("Health Bar")]
     [SerializeField] protected bool showHealthBar = true;
     [SerializeField] protected Vector3 healthBarOffset = new Vector3(0, 1.5f, 0);
     [SerializeField] protected Vector2 healthBarSize = new Vector2(1f, 0.1f);
-
-    [Header("Hit Flash")]
-    [SerializeField] private Color hitFlashColor = Color.red;
-    [SerializeField] private float hitFlashDuration = 0.15f;
 
     [Header("Runtime State")]
     [SerializeField] protected int currentHealth;
@@ -149,16 +150,30 @@ public abstract class UnitBase : MonoBehaviour
     {
         if (projectilePrefab == null) return;
 
+        // Fire Point가 있으면 사용, 없으면 기본 위치
+        Vector3 spawnPosition = firePoint != null
+            ? firePoint.position
+            : transform.position;
+
+        Quaternion spawnRotation = firePoint != null
+            ? firePoint.rotation
+            : Quaternion.identity;
+
         GameObject projObj = Instantiate(
             projectilePrefab,
-            transform.position + Vector3.up * 0.5f,
-            Quaternion.identity
+            spawnPosition,
+            spawnRotation
         );
 
         var projectile = projObj.GetComponent<Projectile>();
         if (projectile != null)
         {
-            projectile.Initialize(target, attackDamage);
+            // 타겟 방향 계산
+            Vector3 direction = (target.transform.position - spawnPosition).normalized;
+
+            // 타겟의 레이어로 충돌 대상 설정
+            LayerMask targetLayer = 1 << target.gameObject.layer;
+            projectile.Initialize(direction, attackDamage, targetLayer);
         }
     }
 
@@ -223,8 +238,8 @@ public abstract class UnitBase : MonoBehaviour
 
     private IEnumerator HitFlashRoutine()
     {
-        unitRenderer.material.color = hitFlashColor;
-        yield return new WaitForSeconds(hitFlashDuration);
+        unitRenderer.material.color = HIT_FLASH_COLOR;
+        yield return new WaitForSeconds(HIT_FLASH_DURATION);
         unitRenderer.material.color = originalColor;
         hitFlashCoroutine = null;
     }
