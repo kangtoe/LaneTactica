@@ -7,6 +7,55 @@ using UnityEditor;
 /// </summary>
 public class LaneTacticaSetup : Editor
 {
+    [MenuItem("LaneTactica/Create Energy Generator Prefab")]
+    public static void CreateEnergyGeneratorPrefab()
+    {
+        CreateFolderIfNotExists("Assets/Prefabs");
+
+        // Cylinder 오브젝트 생성
+        GameObject generator = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        generator.name = "Cylinder_EnergyGenerator";
+        generator.transform.position = new Vector3(0f, 0f, 0f);
+        generator.transform.localScale = new Vector3(1f, 0.5f, 1f);
+
+        // CapsuleCollider → BoxCollider 교체
+        Object.DestroyImmediate(generator.GetComponent<CapsuleCollider>());
+        generator.AddComponent<BoxCollider>();
+
+        // TowerBase + EnergyGenerator 컴포넌트 추가 (컴포지션)
+        var tower = generator.AddComponent<TowerBase>();
+        var gen = generator.AddComponent<EnergyGenerator>();
+
+        // TowerBase 스탯 설정
+        var towerSO = new SerializedObject(tower);
+        towerSO.FindProperty("unitName").stringValue = "에너지 생성기";
+        towerSO.FindProperty("maxHealth").intValue = 80;
+        towerSO.FindProperty("attackDamage").intValue = 0;
+        towerSO.FindProperty("attackSpeed").floatValue = 0;
+        towerSO.FindProperty("attackRange").floatValue = 0;
+        towerSO.FindProperty("attackType").enumValueIndex = 0; // None
+        towerSO.FindProperty("showHealthBar").boolValue = true;
+        towerSO.FindProperty("energyCost").intValue = 50;
+        towerSO.FindProperty("cooldown").floatValue = 10f;
+        towerSO.ApplyModifiedPropertiesWithoutUndo();
+
+        // EnergyGenerator 스탯 설정
+        var genSO = new SerializedObject(gen);
+        genSO.FindProperty("energyPerGeneration").intValue = 25;
+        genSO.FindProperty("generationInterval").floatValue = 5f;
+        genSO.ApplyModifiedPropertiesWithoutUndo();
+
+        // 프리팹 저장
+        string prefabPath = "Assets/Prefabs/Cylinder_EnergyGenerator.prefab";
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(generator, prefabPath);
+        DestroyImmediate(generator);
+
+        Selection.activeObject = prefab;
+        EditorGUIUtility.PingObject(prefab);
+
+        Debug.Log($"Energy Generator prefab created: {prefabPath}");
+    }
+
     [MenuItem("LaneTactica/Create Tower Card Prefab")]
     public static void CreateTowerCardPrefab()
     {
